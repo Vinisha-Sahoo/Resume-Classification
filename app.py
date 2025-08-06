@@ -3,7 +3,6 @@ import joblib
 import os
 import re
 from docx import Document
-from collections import Counter
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 # === Paths ===
@@ -57,19 +56,12 @@ def extract_text_from_docx(file):
 
 def extract_sections(text):
     text = text.lower()
-    exp = re.search(r"(experience|work history)(.*?)(education|skills|projects|$)", text, re.DOTALL)
-    role = re.search(r"(roles|responsibilities)(.*?)(experience|education|skills|projects|$)", text, re.DOTALL)
+    exp = re.search(r"(experience|work history)(.*?)(education|skills|projects|responsibilities|$)", text, re.DOTALL)
+    role = re.search(r"(responsibilities|roles)(.*?)(experience|education|skills|projects|$)", text, re.DOTALL)
     return (
         exp.group(2).strip() if exp else "Not found",
         role.group(2).strip() if role else "Not found"
     )
-
-def extract_keywords(text, top_n=10):
-    text = text.lower()
-    words = re.findall(r'\b[a-z]{3,}\b', text)
-    filtered = [word for word in words if word not in ENGLISH_STOP_WORDS and not word.isnumeric()]
-    freq_dist = Counter(filtered)
-    return [word for word, _ in freq_dist.most_common(top_n)]
 
 # === UI Layout ===
 st.set_page_config("Resume Classifier", layout="wide")
@@ -103,7 +95,7 @@ if uploaded_file:
     predicted_role_clean = predicted_role.strip().lower()
     role_matched = None
     for role_name in role_details.keys():
-        if predicted_role_clean in role_name.lower():
+        if predicted_role_clean in role_name.lower() or role_name.lower() in predicted_role_clean:
             role_matched = role_name
             break
 
@@ -118,9 +110,7 @@ if uploaded_file:
             st.markdown("\n".join(f"- {kw}" for kw in role_details[role_matched]['Keywords']))
         else:
             st.markdown("**📝 Description:** *(No predefined role description)*")
-            st.markdown("**📌 Extracted Keywords from Resume:**")
-            extracted = extract_keywords(raw_text)
-            st.markdown("\n".join(f"- {kw}" for kw in extracted))
+            st.markdown("**📌 Keywords:** *(No predefined keywords)*")
 
     # 📚 Sections from Resume
     exp_text, role_text = extract_sections(raw_text)
