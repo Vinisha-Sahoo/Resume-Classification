@@ -56,7 +56,7 @@ def extract_text_from_docx(file):
 def extract_sections(text):
     text = text.lower()
     exp = re.search(r"(experience|work history)(.*?)(education|skills|projects|$)", text, re.DOTALL)
-    role = re.search(r"(roles|responsibilities)(.*?)(experience|education|skills|projects|$)", text, re.DOTALL)
+    role = re.search(r"(roles|responsibilities|responsibility)(.*?)(experience|education|skills|projects|$)", text, re.DOTALL)
     return (
         exp.group(2).strip() if exp else "Not found",
         role.group(2).strip() if role else "Not found"
