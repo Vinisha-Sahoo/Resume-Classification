@@ -4,20 +4,12 @@ import os
 import re
 from docx import Document
 from collections import Counter
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk import pos_tag
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
-nltk.download("stopwords")
-nltk.download("punkt")
-nltk.download("averaged_perceptron_tagger")
-
-# === Absolute path setup ===
+# === Setup paths ===
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(APP_DIR, "models")
 
-# === Model list with accuracy ===
 MODELS = {
     "Logistic Regression": ("logistic_model.pkl", 0.9367),
     "Random Forest": ("randomforest_model.pkl", 0.942),
@@ -26,7 +18,6 @@ MODELS = {
     "KNN": ("knn_model.pkl", 0.91)
 }
 
-# === Role Info ===
 role_details = {
     "Workday Consultant": {
         "Keywords": ["Workday", "EIB", "Studio", "XSLT", "PICOF", "PECI"],
@@ -54,7 +45,6 @@ role_details = {
     }
 }
 
-# === Utilities ===
 def load_pickle(filename):
     path = os.path.join(MODEL_DIR, filename)
     if not os.path.exists(path):
@@ -77,26 +67,21 @@ def extract_sections(text):
 
 def extract_keywords(text, top_n=10):
     text = text.lower()
-    stop_words = set(stopwords.words("english"))
-    tokens = word_tokenize(text)
-    filtered = [word for word in tokens if word.isalpha() and word not in stop_words]
-    tagged = pos_tag(filtered)
-    keywords = [word for word, tag in tagged if tag in ("NN", "NNS")]
-    freq = Counter(keywords)
-    return [word for word, _ in freq.most_common(top_n)]
+    words = re.findall(r'\b[a-z]{3,}\b', text)
+    filtered = [word for word in words if word not in ENGLISH_STOP_WORDS]
+    freq_dist = Counter(filtered)
+    return [word for word, count in freq_dist.most_common(top_n)]
 
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
 st.title("📄 Resume Role Classifier")
 st.markdown("Upload your resume and let AI predict your job category using different ML models.")
 
-# === Sidebar ===
 st.sidebar.header("🔧 Choose a Model")
 model_name = st.sidebar.selectbox("Model", list(MODELS.keys()))
 model_file, accuracy = MODELS[model_name]
 st.sidebar.markdown(f"**Accuracy:** `{accuracy * 100:.2f}%`")
 
-# === File Upload ===
 uploaded_file = st.file_uploader("📤 Upload a `.docx` resume", type=["docx"])
 
 if uploaded_file:
@@ -116,12 +101,13 @@ if uploaded_file:
     role = role_details.get(predicted_role, role_details["Unclassified"])
     with st.expander("💼 Role Details", expanded=True):
         st.markdown(f"**📝 Description:** {role['Description']}")
-
-        # 🔍 Extracted Keywords
-        st.markdown("**📌 Extracted Keywords from Resume:**")
-        extracted = extract_keywords(raw_text)
-        for kw in extracted:
-            st.markdown(f"- {kw}")
+        if role['Keywords']:
+            st.markdown("**📌 Keywords:**")
+            st.markdown("\n".join(f"- {kw}" for kw in role["Keywords"]))
+        else:
+            st.markdown("📌 **Extracted Keywords from Resume:**")
+            extracted = extract_keywords(raw_text)
+            st.markdown("\n".join(f"- {word}" for word in extracted))
 
     exp_text, role_text = extract_sections(raw_text)
     st.subheader("📚 Experience")
@@ -129,5 +115,6 @@ if uploaded_file:
 
     st.subheader("🧰 Responsibilities")
     st.markdown(role_text[:1000] + "..." if role_text != "Not found" else "Not found")
+
 else:
     st.warning("📎 Please upload a `.docx` file to begin.")
