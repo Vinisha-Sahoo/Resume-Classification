@@ -101,15 +101,12 @@ if uploaded_file:
     matched_role = match_predefined_role(predicted_role)
 
     # 📌 Role Info
-    with st.expander("💼 Role Details", expanded=True):
-        if matched_role:
-            info = role_details[matched_role]
+    if matched_role:
+        info = role_details[matched_role]
+        with st.expander("💼 Role Details", expanded=True):
             st.markdown(f"**📝 Description:** {info['Description']}")
             st.markdown("**📌 Keywords:**")
             st.markdown("\n".join(f"- {kw}" for kw in info['Keywords']))
-        else:
-            st.markdown("**📝 Description:** _(No predefined role description)_")
-            st.markdown("**📌 Keywords:** _(Not available)_")
 
     # 🧾 Experience & Responsibilities
     exp_text, role_text = extract_sections(raw_text)
