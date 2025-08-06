@@ -3,6 +3,7 @@ import joblib
 import os
 import re
 from docx import Document
+from collections import Counter
 
 # === Absolute path setup ===
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -38,10 +39,6 @@ role_details = {
     "ETL Developer": {
         "Keywords": ["Informatica", "ETL", "SSRS", "Data Warehouse"],
         "Description": "Builds and manages large-scale ETL data pipelines."
-    },
-    "Unclassified": {
-        "Keywords": [],
-        "Description": "The resume could not be classified confidently."
     }
 }
 
@@ -65,6 +62,13 @@ def extract_sections(text):
         exp.group(2).strip() if exp else "Not found",
         role.group(2).strip() if role else "Not found"
     )
+
+def extract_keywords(text, top_n=10):
+    text = re.sub(r"[^a-zA-Z0-9\s]", "", text)
+    words = text.lower().split()
+    common_words = set(["and", "the", "with", "for", "from", "that", "this", "have", "has", "was", "are", "will", "shall", "our", "but", "you", "your"])
+    filtered = [w for w in words if len(w) > 3 and w not in common_words]
+    return [kw for kw, _ in Counter(filtered).most_common(top_n)]
 
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
@@ -95,12 +99,17 @@ if uploaded_file:
     # 🎯 Prediction
     st.success(f"🎯 **Predicted Role:** {predicted_role}")
 
-    # 📌 Role Info
-    role = role_details.get(predicted_role, role_details["Unclassified"])
     with st.expander("💼 Role Details", expanded=True):
-        st.markdown(f"**📝 Description:** {role['Description']}")
-        st.markdown("**📌 Keywords:**")
-        st.markdown("\n".join(f"- {kw}" for kw in role["Keywords"]))
+        if predicted_role in role_details:
+            role = role_details[predicted_role]
+            st.markdown(f"**📝 Description:** {role['Description']}")
+            st.markdown("**📌 Keywords:**")
+            st.markdown("\n".join(f"- {kw}" for kw in role["Keywords"]))
+        else:
+            st.markdown("**📝 Description:** _(No predefined role description)_")
+            st.markdown("**📌 Extracted Keywords from Resume:**")
+            for kw in extract_keywords(raw_text):
+                st.markdown(f"- {kw}")
 
     # 🧾 Experience & Responsibilities
     exp_text, role_text = extract_sections(raw_text)
