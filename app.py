@@ -6,10 +6,11 @@ from docx import Document
 from collections import Counter
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
-# === Setup paths ===
+# === Paths ===
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(APP_DIR, "models")
 
+# === Model + Accuracy Info ===
 MODELS = {
     "Logistic Regression": ("logistic_model.pkl", 0.9367),
     "Random Forest": ("randomforest_model.pkl", 0.942),
@@ -18,6 +19,7 @@ MODELS = {
     "KNN": ("knn_model.pkl", 0.91)
 }
 
+# === Role Metadata ===
 role_details = {
     "Workday Consultant": {
         "Keywords": ["Workday", "EIB", "Studio", "XSLT", "PICOF", "PECI"],
@@ -38,13 +40,10 @@ role_details = {
     "ETL Developer": {
         "Keywords": ["Informatica", "ETL", "SSRS", "Data Warehouse"],
         "Description": "Builds and manages large-scale ETL data pipelines."
-    },
-    "Unclassified": {
-        "Keywords": [],
-        "Description": "(No predefined role description)"
     }
 }
 
+# === Utility Functions ===
 def load_pickle(filename):
     path = os.path.join(MODEL_DIR, filename)
     if not os.path.exists(path):
@@ -68,53 +67,67 @@ def extract_sections(text):
 def extract_keywords(text, top_n=10):
     text = text.lower()
     words = re.findall(r'\b[a-z]{3,}\b', text)
-    filtered = [word for word in words if word not in ENGLISH_STOP_WORDS]
+    filtered = [word for word in words if word not in ENGLISH_STOP_WORDS and not word.isnumeric()]
     freq_dist = Counter(filtered)
-    return [word for word, count in freq_dist.most_common(top_n)]
+    return [word for word, _ in freq_dist.most_common(top_n)]
 
-# === Streamlit UI ===
+# === UI Layout ===
 st.set_page_config("Resume Classifier", layout="wide")
 st.title("📄 Resume Role Classifier")
 st.markdown("Upload your resume and let AI predict your job category using different ML models.")
 
+# === Sidebar Model Selection ===
 st.sidebar.header("🔧 Choose a Model")
 model_name = st.sidebar.selectbox("Model", list(MODELS.keys()))
 model_file, accuracy = MODELS[model_name]
 st.sidebar.markdown(f"**Accuracy:** `{accuracy * 100:.2f}%`")
 
+# === Upload Section ===
 uploaded_file = st.file_uploader("📤 Upload a `.docx` resume", type=["docx"])
 
 if uploaded_file:
     st.info("⏳ Analyzing resume...")
 
+    # Load models
     model = load_pickle(model_file)
     vectorizer = load_pickle("tfidf_vectorizer.pkl")
     label_encoder = load_pickle("label_encoder.pkl")
 
+    # Predict role
     raw_text = extract_text_from_docx(uploaded_file)
     X = vectorizer.transform([raw_text])
     prediction = model.predict(X)[0]
     predicted_role = label_encoder.inverse_transform([prediction])[0]
 
+    # Normalize predicted role
+    predicted_role_clean = predicted_role.strip().lower()
+    role_matched = None
+    for role_name in role_details.keys():
+        if predicted_role_clean in role_name.lower():
+            role_matched = role_name
+            break
+
+    # 🎯 Predicted Output
     st.success(f"🎯 **Predicted Role:** {predicted_role}")
 
-    role = role_details.get(predicted_role, role_details["Unclassified"])
+    # 💼 Role Details
     with st.expander("💼 Role Details", expanded=True):
-        st.markdown(f"**📝 Description:** {role['Description']}")
-        if role['Keywords']:
+        if role_matched:
+            st.markdown(f"**📝 Description:** {role_details[role_matched]['Description']}")
             st.markdown("**📌 Keywords:**")
-            st.markdown("\n".join(f"- {kw}" for kw in role["Keywords"]))
+            st.markdown("\n".join(f"- {kw}" for kw in role_details[role_matched]['Keywords']))
         else:
-            st.markdown("📌 **Extracted Keywords from Resume:**")
+            st.markdown("**📝 Description:** *(No predefined role description)*")
+            st.markdown("**📌 Extracted Keywords from Resume:**")
             extracted = extract_keywords(raw_text)
-            st.markdown("\n".join(f"- {word}" for word in extracted))
+            st.markdown("\n".join(f"- {kw}" for kw in extracted))
 
+    # 📚 Sections from Resume
     exp_text, role_text = extract_sections(raw_text)
     st.subheader("📚 Experience")
     st.markdown(exp_text[:1000] + "..." if exp_text != "Not found" else "Not found")
 
     st.subheader("🧰 Responsibilities")
     st.markdown(role_text[:1000] + "..." if role_text != "Not found" else "Not found")
-
 else:
     st.warning("📎 Please upload a `.docx` file to begin.")
