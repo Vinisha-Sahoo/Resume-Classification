@@ -1,59 +1,39 @@
+from docx import Document
 import re
-import streamlit as st
-from PyPDF2 import PdfReader
 
-# --- Helper to extract sections ---
-def extract_sections(text):
-    skill_pattern = r"(?i)(?:skillsets?|skills)\s*[:\-]?\s*(.*?)(?=(?:responsibilit|experience|$))"
-    resp_pattern = r"(?i)(?:responsibilit(?:y|ies)|roles?)\s*[:\-]?\s*(.*?)(?=(?:skill|experience|$))"
+def extract_text_from_docx(docx_path):
+    doc = Document(docx_path)
+    text = []
+    for para in doc.paragraphs:
+        if para.text.strip():
+            text.append(para.text.strip())
+    return "\n".join(text)
 
-    skill_match = re.search(skill_pattern, text, re.S)
-    resp_match = re.search(resp_pattern, text, re.S)
-
-    skill_text = skill_match.group(1).strip() if skill_match else "Not found"
-    resp_text = resp_match.group(1).strip() if resp_match else "Not found"
-
-    return skill_text, resp_text
-
-# --- Group lines that belong together ---
 def group_related_points(text):
-    lines = [line.strip() for line in re.split(r'[\n•]', text) if line.strip()]
-    grouped = []
-    buffer = []
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    grouped_points = []
+    current_point = ""
 
     for line in lines:
-        if re.match(r"(?i).*\b(experience|project|worked|developed|managed|responsible)\b", line) and buffer:
-            grouped.append(" ".join(buffer))
-            buffer = [line]
+        # New bullet point starts if:
+        # - line begins with a bullet/number OR
+        # - line starts with uppercase and current_point isn't empty
+        if re.match(r"^(\d+[\.\)]|\-|\•)", line) or (line[0].isupper() and current_point):
+            grouped_points.append(current_point.strip())
+            current_point = line
         else:
-            buffer.append(line)
+            current_point += " " + line
 
-    if buffer:
-        grouped.append(" ".join(buffer))
+    if current_point:
+        grouped_points.append(current_point.strip())
 
-    return "\n".join(f"- {point}" for point in grouped)
+    return grouped_points
 
-# --- Streamlit UI ---
-st.title("📄 Resume Parser")
+if __name__ == "__main__":
+    docx_path = "input.docx"  # Change this to your file name
+    raw_text = extract_text_from_docx(docx_path)
+    grouped = group_related_points(raw_text)
 
-uploaded_file = st.file_uploader("Upload a PDF Resume", type=["pdf"])
-
-if uploaded_file is not None:
-    reader = PdfReader(uploaded_file)
-    raw_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
-
-    exp_text, role_text = extract_sections(raw_text)
-
-    st.write("---")
-
-    st.subheader("🛠 Skillsets")
-    if exp_text != "Not found":
-        st.markdown(group_related_points(exp_text[:1500]) + "...")
-    else:
-        st.markdown("Not found")
-
-    st.subheader("🧰 Responsibilities")
-    if role_text != "Not found":
-        st.markdown(group_related_points(role_text[:1500]) + "...")
-    else:
-        st.markdown("Not found")
+    print("\n--- Grouped Points ---\n")
+    for idx, point in enumerate(grouped, 1):
+        print(f"{idx}. {point}")
