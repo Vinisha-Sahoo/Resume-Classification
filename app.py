@@ -62,10 +62,29 @@ def extract_sections(text):
         role.group(2).strip() if role else "Not found"
     )
 
-# Format skillsets into bullet points
-def format_as_list(text):
-    items = [item.strip() for item in re.split(r'[.\n]', text) if item.strip()]
-    return "\n".join(f"- {item}" for item in items)
+# Format skillsets into grouped bullet points
+def format_grouped_list(text):
+    raw_sentences = re.split(r'(?<=[.?!])\s+', text.strip())
+    grouped_points = []
+    current_point = ""
+
+    for sentence in raw_sentences:
+        if not sentence:
+            continue
+
+        # Start a new bullet if it looks like a new experience/project
+        if re.match(r'^(project|worked|experience|developed|managed|designed|implemented|led|created|built)\b', sentence.strip(), re.IGNORECASE):
+            if current_point:
+                grouped_points.append(current_point.strip())
+            current_point = sentence
+        else:
+            # continuation of the same bullet
+            current_point += " " + sentence
+
+    if current_point:
+        grouped_points.append(current_point.strip())
+
+    return "\n".join(f"- {point}" for point in grouped_points)
 
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
@@ -122,7 +141,7 @@ if uploaded_file:
 
     st.subheader("🛠 Skillsets")
     if exp_text != "Not found":
-        st.markdown(format_as_list(exp_text[:1500]) + "...")
+        st.markdown(format_grouped_list(exp_text[:1500]) + "...")
     else:
         st.markdown("Not found")
 
