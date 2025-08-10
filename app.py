@@ -62,6 +62,11 @@ def extract_sections(text):
         role.group(2).strip() if role else "Not found"
     )
 
+# Format skillsets into bullet points
+def format_as_list(text):
+    items = [item.strip() for item in re.split(r'[.\n]', text) if item.strip()]
+    return "\n".join(f"- {item}" for item in items)
+
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
 st.markdown("<h1 style='text-align:center;'>📄 Resume Role Classifier</h1>", unsafe_allow_html=True)
@@ -111,18 +116,21 @@ if uploaded_file:
             st.markdown("**📌 Keywords:**")
             st.markdown("\n".join(f"- {kw}" for kw in info['Keywords']))
 
-    # 🧾 Skillsets & Responsibilities
+    # 🧾 Skillsets & Responsibilities (stacked)
     exp_text, role_text = extract_sections(raw_text)
     st.write("---")
-    col1, col2 = st.columns(2)
 
-    with col1:
-        st.subheader("🛠 Skillsets")
-        st.markdown(exp_text[:1000] + "..." if exp_text != "Not found" else "Not found")
+    st.subheader("🛠 Skillsets")
+    if exp_text != "Not found":
+        st.markdown(format_as_list(exp_text[:1500]) + "...")
+    else:
+        st.markdown("Not found")
 
-    with col2:
-        st.subheader("🧰 Responsibilities")
-        st.markdown(role_text[:1000] + "..." if role_text != "Not found" else "Not found")
+    st.subheader("🧰 Responsibilities")
+    if role_text != "Not found":
+        st.markdown(role_text[:1500] + "...")
+    else:
+        st.markdown("Not found")
 
 else:
     st.warning("📎 Please upload a `.docx` file to begin.")
