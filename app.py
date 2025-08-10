@@ -1,30 +1,45 @@
 from docx import Document
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
+from fpdf import FPDF
 
-# Load DOCX
-docx_path = "input.docx"
-doc = Document(docx_path)
+def read_docx(file_path):
+    doc = Document(file_path)
+    lines = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    return lines
 
-# Extract all text
-full_text = []
-for para in doc.paragraphs:
-    if para.text.strip():
-        full_text.append(para.text.strip())
+def group_related_lines(lines):
+    grouped = []
+    temp_group = []
 
-# 🛠 Here you can keep your formatting logic
-formatted_text = "\n".join(full_text)  # Replace with your bullet-point logic
+    for line in lines:
+        if line[0].isupper() and temp_group:
+            grouped.append(" ".join(temp_group))
+            temp_group = [line]
+        else:
+            temp_group.append(line)
+    if temp_group:
+        grouped.append(" ".join(temp_group))
+    return grouped
 
-# Save to PDF
-pdf_path = "output.pdf"
-styles = getSampleStyleSheet()
-story = []
-for line in formatted_text.split("\n"):
-    story.append(Paragraph(line, styles["Normal"]))
-    story.append(Spacer(1, 8))
+def save_as_pdf(grouped_points, output_path):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
 
-pdf = SimpleDocTemplate(pdf_path, pagesize=letter)
-pdf.build(story)
+    pdf.cell(0, 10, "Formatted Resume", ln=True, align="C")
+    pdf.ln(10)
 
-print(f"PDF saved as {pdf_path}")
+    for idx, point in enumerate(grouped_points, start=1):
+        pdf.multi_cell(0, 8, f"{idx}. {point}")
+        pdf.ln(1)
+
+    pdf.output(output_path)
+
+# === USAGE ===
+input_docx = "resume.docx"   # Your input file
+output_pdf = "formatted_resume.pdf"
+
+lines = read_docx(input_docx)
+grouped_points = group_related_lines(lines)
+save_as_pdf(grouped_points, output_pdf)
+
+print(f"Saved formatted PDF to {output_pdf}")
