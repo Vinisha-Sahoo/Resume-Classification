@@ -55,7 +55,7 @@ def extract_text_from_docx(file):
 
 def extract_sections(text):
     text = text.lower()
-    exp = re.search(r"(experience|work history)(.*?)(education|skills|projects|$)", text, re.DOTALL)
+    exp = re.search(r"(experience|work history|skills|skillset)(.*?)(education|projects|$)", text, re.DOTALL)
     role = re.search(r"(roles|responsibilities|responsibility)(.*?)(experience|education|skills|projects|$)", text, re.DOTALL)
     return (
         exp.group(2).strip() if exp else "Not found",
@@ -64,7 +64,8 @@ def extract_sections(text):
 
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
-st.title("📄 Resume Role Classifier")
+st.markdown("<h1 style='text-align:center;'>📄 Resume Role Classifier</h1>", unsafe_allow_html=True)
+st.write("---")
 st.markdown("Upload your resume and let AI predict your job category using different ML models.")
 
 # === Sidebar ===
@@ -72,6 +73,8 @@ st.sidebar.header("🔧 Choose a Model")
 model_name = st.sidebar.selectbox("Model", list(MODELS.keys()))
 model_file, accuracy = MODELS[model_name]
 st.sidebar.markdown(f"**Accuracy:** `{accuracy * 100:.2f}%`")
+st.sidebar.write("---")
+st.sidebar.info("📎 Upload a `.docx` file in the main panel to start analysis.")
 
 # === File Upload ===
 uploaded_file = st.file_uploader("📤 Upload a `.docx` resume", type=["docx"])
@@ -108,13 +111,18 @@ if uploaded_file:
             st.markdown("**📌 Keywords:**")
             st.markdown("\n".join(f"- {kw}" for kw in info['Keywords']))
 
-    # 🧾 Experience & Responsibilities
+    # 🧾 Skillsets & Responsibilities
     exp_text, role_text = extract_sections(raw_text)
-    st.subheader("📚 Experience")
-    st.markdown(exp_text[:1000] + "..." if exp_text != "Not found" else "Not found")
+    st.write("---")
+    col1, col2 = st.columns(2)
 
-    st.subheader("🧰 Responsibilities")
-    st.markdown(role_text[:1000] + "..." if role_text != "Not found" else "Not found")
+    with col1:
+        st.subheader("🛠 Skillsets")
+        st.markdown(exp_text[:1000] + "..." if exp_text != "Not found" else "Not found")
+
+    with col2:
+        st.subheader("🧰 Responsibilities")
+        st.markdown(role_text[:1000] + "..." if role_text != "Not found" else "Not found")
 
 else:
     st.warning("📎 Please upload a `.docx` file to begin.")
