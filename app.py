@@ -3,6 +3,9 @@ import joblib
 import os
 import re
 from docx import Document
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # === Absolute path setup ===
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -86,6 +89,49 @@ def format_grouped_list(text):
 
     return "\n".join(f"- {point}" for point in grouped_points)
 
+# PDF generator
+def generate_pdf(predicted_role, role_info, skills, responsibilities):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.setFont("Helvetica", 12)
+
+    y = 750
+    c.drawString(50, y, f"Predicted Role: {predicted_role}")
+    y -= 20
+
+    if role_info:
+        c.drawString(50, y, f"Description: {role_info['Description']}")
+        y -= 20
+        c.drawString(50, y, "Keywords:")
+        y -= 20
+        for kw in role_info['Keywords']:
+            c.drawString(70, y, f"- {kw}")
+            y -= 15
+
+    y -= 20
+    c.drawString(50, y, "Skillsets:")
+    y -= 20
+    for line in skills.split("\n"):
+        c.drawString(70, y, line)
+        y -= 15
+        if y < 50:
+            c.showPage()
+            y = 750
+
+    y -= 20
+    c.drawString(50, y, "Responsibilities:")
+    y -= 20
+    for line in responsibilities.split("\n"):
+        c.drawString(70, y, line)
+        y -= 15
+        if y < 50:
+            c.showPage()
+            y = 750
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
 # === Streamlit UI ===
 st.set_page_config("Resume Classifier", layout="wide")
 st.markdown("<h1 style='text-align:center;'>📄 Resume Role Classifier</h1>", unsafe_allow_html=True)
@@ -128,6 +174,7 @@ if uploaded_file:
     matched_role = match_predefined_role(predicted_role)
 
     # 📌 Role Info
+    info = None
     if matched_role:
         info = role_details[matched_role]
         with st.expander("💼 Role Details", expanded=True):
@@ -141,15 +188,28 @@ if uploaded_file:
 
     st.subheader("🛠 Skillsets")
     if exp_text != "Not found":
-        st.markdown(format_grouped_list(exp_text[:1500]) + "...")
+        skills_formatted = format_grouped_list(exp_text[:1500]) + "..."
+        st.markdown(skills_formatted)
     else:
-        st.markdown("Not found")
+        skills_formatted = "Not found"
+        st.markdown(skills_formatted)
 
     st.subheader("🧰 Responsibilities")
     if role_text != "Not found":
-        st.markdown(role_text[:1500] + "...")
+        responsibilities_formatted = role_text[:1500] + "..."
+        st.markdown(responsibilities_formatted)
     else:
-        st.markdown("Not found")
+        responsibilities_formatted = "Not found"
+        st.markdown(responsibilities_formatted)
+
+    # 📥 PDF Download
+    pdf_buffer = generate_pdf(predicted_role, info, skills_formatted, responsibilities_formatted)
+    st.download_button(
+        label="📥 Download Analysis as PDF",
+        data=pdf_buffer,
+        file_name="resume_analysis.pdf",
+        mime="application/pdf"
+    )
 
 else:
     st.warning("📎 Please upload a `.docx` file to begin.")
