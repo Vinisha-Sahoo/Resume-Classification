@@ -98,7 +98,6 @@ def generate_excel(name, email, experience, skills, role):
     return output
 
 # Sidebar
-st.sidebar.image("logo.png", use_container_width=True)
 st.sidebar.title("Resume Classifier")
 st.sidebar.markdown(
     """
@@ -240,3 +239,4 @@ with tab3:
     # GitHub raw file link
     pdf_url = "https://github.com/farah-web/resume-classification-app/raw/main/Resume-Classification-Using-Machine-Learning.pdf"
     st.markdown(f"[📥 Download Project Report (PDF)]({pdf_url})", unsafe_allow_html=True)
+
